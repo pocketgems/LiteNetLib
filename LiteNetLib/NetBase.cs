@@ -1,13 +1,9 @@
 #if DEBUG
 #define STATS_ENABLED
 #endif
-#if WINRT && !UNITY_EDITOR
-using Windows.System.Threading;
-#endif
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using LiteNetLib.Utils;
 
 namespace LiteNetLib
@@ -57,12 +53,7 @@ namespace LiteNetLib
 
         private readonly NetSocket _socket;
         private readonly List<FlowMode> _flowModes;
-
-#if WINRT && !UNITY_EDITOR
-        private readonly ManualResetEvent _updateWaiter = new ManualResetEvent(false);
-#else
-        private Thread _logicThread;
-#endif
+        private NetThread _netThread;
 
         private bool _running;
         private readonly Queue<NetEvent> _netEventsQueue;
@@ -189,17 +180,7 @@ namespace LiteNetLib
                 return false;
 
             _running = true;
-#if WINRT && !UNITY_EDITOR
-            ThreadPool.RunAsync(
-                a => UpdateLogic(), 
-                WorkItemPriority.Normal, 
-                WorkItemOptions.TimeSliced).AsTask();
-#else
-            _logicThread = new Thread(UpdateLogic);
-            _logicThread.Name = "LogicThread(" + port + ")";
-            _logicThread.IsBackground = true;
-            _logicThread.Start();
-#endif
+            _netThread = new NetThread("LogicThread(" + port + ")", UpdateTime, UpdateLogic);
             return true;
         }
 
@@ -318,11 +299,7 @@ namespace LiteNetLib
             if (_running)
             {
                 _running = false;
-#if !WINRT || UNITY_EDITOR
-                if(Thread.CurrentThread != _logicThread)
-                    _logicThread.Join();
-                _logicThread = null;
-#endif
+                _netThread.Stop();
                 _socket.Close();
             }
         }
@@ -438,39 +415,32 @@ namespace LiteNetLib
         //Update function
         private void UpdateLogic()
         {
-            while (_running)
-            {
+            _netThread.SleepTime = UpdateTime;
 #if DEBUG
-                if (SimulateLatency)
+            if (SimulateLatency)
+            {
+                var node = _pingSimulationList.First;
+                var time = DateTime.UtcNow;
+                while (node != null)
                 {
-                    var node = _pingSimulationList.First;
-                    var time = DateTime.UtcNow;
-                    while (node != null)
+                    var incomingData = node.Value;
+                    if (incomingData.TimeWhenGet <= time)
                     {
-                        var incomingData = node.Value;
-                        if (incomingData.TimeWhenGet <= time)
-                        {
-                            DataReceived(incomingData.Data, incomingData.Data.Length, incomingData.EndPoint);
-                            var nodeToRemove = node;
-                            node = node.Next;
+                        DataReceived(incomingData.Data, incomingData.Data.Length, incomingData.EndPoint);
+                        var nodeToRemove = node;
+                        node = node.Next;
 
-                            lock (_pingSimulationList)
-                                _pingSimulationList.Remove(nodeToRemove);
-                        }
-                        else
-                        {
-                            node = node.Next;
-                        }
+                        lock (_pingSimulationList)
+                            _pingSimulationList.Remove(nodeToRemove);
+                    }
+                    else
+                    {
+                        node = node.Next;
                     }
                 }
-#endif
-                PostProcessEvent(UpdateTime);
-#if WINRT && !UNITY_EDITOR
-                _updateWaiter.WaitOne(UpdateTime);
-#else
-                Thread.Sleep(UpdateTime);
-#endif
             }
+#endif
+            PostProcessEvent(UpdateTime);
         }
 
         private void ReceiveLogic(byte[] data, int length, int errorCode, NetEndPoint remoteEndPoint)

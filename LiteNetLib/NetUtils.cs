@@ -11,7 +11,7 @@ using System.Net.NetworkInformation;
 
 namespace LiteNetLib
 {
-    static class NetUtils
+    public static class NetUtils
     {
         public static int RelativeSequenceNumber(int number, int expected)
         {
@@ -117,7 +117,6 @@ namespace LiteNetLib
         }
 
         private static readonly object DebugLogLock = new object();
-
         private static void DebugWriteLogic(ConsoleColor color, string str, params object[] args)
         {
             lock (DebugLogLock)

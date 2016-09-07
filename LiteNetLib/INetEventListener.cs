@@ -30,7 +30,7 @@ namespace LiteNetLib
         void OnNetworkLatencyUpdate(NetPeer peer, int latency);
     }
 
-    public class EventBasedNetListener : INetEventListener
+    public sealed class EventBasedNetListener : INetEventListener
     {
         public delegate void OnPeerConnected(NetPeer peer);
         public delegate void OnPeerDisconnected(NetPeer peer, DisconnectReason disconnectReason, int socketErrorCode);

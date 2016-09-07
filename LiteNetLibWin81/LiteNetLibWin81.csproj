@@ -47,8 +47,14 @@
     <Compile Include="..\LiteNetLib\INetEventListener.cs">
       <Link>INetEventListener.cs</Link>
     </Compile>
-    <Compile Include="..\LiteNetLib\NatPunchModule.cs">
-      <Link>NatPunchModule.cs</Link>
+    <Compile Include="..\LiteNetLib\Modules\NatPNPModule.cs">
+      <Link>Modules\NatPNPModule.cs</Link>
+    </Compile>
+    <Compile Include="..\LiteNetLib\Modules\NatPunchModule.cs">
+      <Link>Modules\NatPunchModule.cs</Link>
+    </Compile>
+    <Compile Include="..\LiteNetLib\Modules\NtpSyncModule.cs">
+      <Link>Modules\NtpSyncModule.cs</Link>
     </Compile>
     <Compile Include="..\LiteNetLib\NetBase.cs">
       <Link>NetBase.cs</Link>
@@ -68,11 +74,11 @@
     <Compile Include="..\LiteNetLib\NetServer.cs">
       <Link>NetServer.cs</Link>
     </Compile>
+    <Compile Include="..\LiteNetLib\NetThread.cs">
+      <Link>NetThread.cs</Link>
+    </Compile>
     <Compile Include="..\LiteNetLib\NetUtils.cs">
       <Link>NetUtils.cs</Link>
-    </Compile>
-    <Compile Include="..\LiteNetLib\NtpSyncModule.cs">
-      <Link>NtpSyncModule.cs</Link>
     </Compile>
     <Compile Include="..\LiteNetLib\ReliableChannel.cs">
       <Link>ReliableChannel.cs</Link>

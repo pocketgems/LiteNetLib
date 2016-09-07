@@ -12,7 +12,7 @@ namespace LiteNetLib
         void OnNatIntroductionSuccess(NetEndPoint targetEndPoint, string token);
     }
 
-    public class EventBasedNatPunchListener : INatPunchListener
+    public sealed class EventBasedNatPunchListener : INatPunchListener
     {
         public delegate void OnNatIntroductionRequest(NetEndPoint localEndPoint, NetEndPoint remoteEndPoint, string token);
         public delegate void OnNatIntroductionSuccess(NetEndPoint targetEndPoint, string token);
