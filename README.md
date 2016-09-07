@@ -22,6 +22,8 @@ Minimal .NET version - 3.5
 * NTP time requests
 * Packet loss and latency simulation
 * IPv6 support (dual mode)
+* Connection statisitcs
+* Multicasting (for discovering servers in local network)
 * Small CPU and RAM usage
 * Unity3d support (you can use library source in project)
 * Supported platforms:
@@ -62,7 +64,7 @@ client.Start();
 client.Connect("localhost" /* host ip or name */, 9050 /* port */);
 listener.NetworkReceiveEvent += (fromPeer, dataReader) =>
 {
-    Console.WriteLine("We got: {0}", dataReader.GetString(100 /* max length of string */);
+    Console.WriteLine("We got: {0}", dataReader.GetString(100 /* max length of string */));
 };
 
 while (!Console.KeyAvailable)
@@ -103,11 +105,17 @@ client.Stop();
 * **SimulationPacketLossChance**
  * chance of packet loss when simulation enabled. value in percents.
  * default value: **10 (%)**
+* **SimulationMinLatency**
+ * minimum simulated latency
+ * default value: **30 msec**
 * **SimulationMaxLatency**
- * maximum simulated latency ( it will be random from 0 to value )
+ * maximum simulated latency
  * default value: **100 msec**
 * **UnsyncedEvents**
  * Experimental feature. Events automatically will be called without PollEvents method from another thread
+ * default value: **false**
+* **DiscoveryEnabled**
+ * Allows receive DiscoveryRequests
  * default value: **false**
 
 ### Only client

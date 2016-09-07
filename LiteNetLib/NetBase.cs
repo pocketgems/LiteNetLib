@@ -12,15 +12,15 @@ using LiteNetLib.Utils;
 
 namespace LiteNetLib
 {
-    internal sealed class FlowMode
-    {
-        public int PacketsPerSecond;
-        public int StartRtt;
-    }
-
     public abstract class NetBase
     {
         internal delegate void OnMessageReceived(byte[] data, int length, int errorCode, NetEndPoint remoteEndPoint);
+
+        private struct FlowMode
+        {
+            public int PacketsPerSecond;
+            public int StartRtt;
+        }
 
         protected enum NetEventType
         {
@@ -40,9 +40,8 @@ namespace LiteNetLib
             public NetDataReader DataReader;
             public NetEventType Type;
             public NetEndPoint RemoteEndPoint;
-            public int SocketErrorCode;
+            public int AdditionalData;
             public DisconnectReason DisconnectReason;
-            public int Latency;
         }
 
 #if DEBUG
@@ -53,6 +52,7 @@ namespace LiteNetLib
             public DateTime TimeWhenGet;
         }
         private readonly LinkedList<IncomingData> _pingSimulationList = new LinkedList<IncomingData>(); 
+        private readonly Random _randomGenerator = new Random();
 #endif
 
         private readonly NetSocket _socket;
@@ -67,7 +67,6 @@ namespace LiteNetLib
         private bool _running;
         private readonly Queue<NetEvent> _netEventsQueue;
         private readonly Stack<NetEvent> _netEventsPool;
-        private readonly Random _randomGenerator = new Random();
         private readonly INetEventListener _netEventListener;
 
         //config section
@@ -80,15 +79,16 @@ namespace LiteNetLib
         public bool SimulatePacketLoss = false;
         public bool SimulateLatency = false;
         public int SimulationPacketLossChance = 10;
+        public int SimulationMinLatency = 30;
         public int SimulationMaxLatency = 100;
         public bool UnsyncedEvents = false;
         public bool DiscoveryEnabled = false;
 
         //stats
-        public uint PacketsSent { get; private set; }
-        public uint PacketsReceived { get; private set; }
-        public uint BytesSent { get; private set; }
-        public uint BytesReceived { get; private set; }
+        public ulong PacketsSent { get; private set; }
+        public ulong PacketsReceived { get; private set; }
+        public ulong BytesSent { get; private set; }
+        public ulong BytesReceived { get; private set; }
 
         //modules
         public readonly NatPunchModule NatPunchModule;
@@ -161,7 +161,7 @@ namespace LiteNetLib
         {
             var evt = CreateEvent(NetEventType.ConnectionLatencyUpdated);
             evt.Peer = fromPeer;
-            evt.Latency = latency;
+            evt.AdditionalData = latency;
             EnqueueEvent(evt);
         }
 
@@ -385,7 +385,7 @@ namespace LiteNetLib
                     _netEventListener.OnPeerConnected(evt.Peer);
                     break;
                 case NetEventType.Disconnect:
-                    _netEventListener.OnPeerDisconnected(evt.Peer, evt.DisconnectReason, evt.SocketErrorCode);
+                    _netEventListener.OnPeerDisconnected(evt.Peer, evt.DisconnectReason, evt.AdditionalData);
                     break;
                 case NetEventType.Receive:
                     _netEventListener.OnNetworkReceive(evt.Peer, evt.DataReader);
@@ -400,17 +400,17 @@ namespace LiteNetLib
                     _netEventListener.OnNetworkReceiveUnconnected(evt.RemoteEndPoint, evt.DataReader, UnconnectedMessageType.DiscoveryResponse);
                     break;
                 case NetEventType.Error:
-                    _netEventListener.OnNetworkError(evt.RemoteEndPoint, evt.SocketErrorCode);
+                    _netEventListener.OnNetworkError(evt.RemoteEndPoint, evt.AdditionalData);
                     break;
                 case NetEventType.ConnectionLatencyUpdated:
-                    _netEventListener.OnNetworkLatencyUpdate(evt.Peer, evt.Latency);
+                    _netEventListener.OnNetworkLatencyUpdate(evt.Peer, evt.AdditionalData);
                     break;
             }
 
             //Recycle
             evt.DataReader.Clear();
             evt.Peer = null;
-            evt.SocketErrorCode = 0;
+            evt.AdditionalData = 0;
             evt.RemoteEndPoint = null;
 
             lock (_netEventsPool)
@@ -487,7 +487,7 @@ namespace LiteNetLib
                 }
                 else if (SimulateLatency)
                 {
-                    int latency = _randomGenerator.Next(SimulationMaxLatency);
+                    int latency = _randomGenerator.Next(SimulationMinLatency, SimulationMaxLatency);
                     if (latency > 5)
                     {
                         byte[] holdedData = new byte[length];
@@ -572,7 +572,7 @@ namespace LiteNetLib
         protected virtual void ProcessReceiveError(int socketErrorCode)
         {
             var netEvent = CreateEvent(NetEventType.Error);
-            netEvent.SocketErrorCode = socketErrorCode;
+            netEvent.AdditionalData = socketErrorCode;
             EnqueueEvent(netEvent);
         }
 
@@ -580,7 +580,7 @@ namespace LiteNetLib
         {
             var netEvent = CreateEvent(NetEventType.Error);
             netEvent.RemoteEndPoint = endPoint;
-            netEvent.SocketErrorCode = socketErrorCode;
+            netEvent.AdditionalData = socketErrorCode;
             EnqueueEvent(netEvent);
         }
 
