@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Net;
 using LiteNetLib.Utils;
 
 namespace LiteNetLib
@@ -72,6 +71,16 @@ namespace LiteNetLib
             _logicThread.Stop();
         }
 
+
+        private static short NetworkToHostOrder(short host)
+        {
+#if BIGENDIAN
+            return host;
+#else
+            return (short)(((host & 0xFF) << 8) | ((host >> 8) & 0xFF));
+#endif
+        }
+
         private void OnMessageReceived(byte[] data, int length, int socketErrorCode, NetEndPoint remoteendpoint)
         {
             switch (_state)
@@ -90,7 +99,7 @@ namespace LiteNetLib
                         Fail();
                         return;
                     }
-                    int errorcode = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(data, 2));
+                    int errorcode = NetworkToHostOrder(BitConverter.ToInt16(data, 2));
                     if (errorcode != 0)
                     {
                         NetUtils.DebugWriteForce(ConsoleColor.Cyan, "[PNP] Error in response");
