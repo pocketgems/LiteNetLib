@@ -55,13 +55,24 @@ namespace LiteNetLib
             try
             {
                 _datagramSocket.BindServiceNameAsync(port.ToString()).AsTask().Wait();
-                _datagramSocket.JoinMulticastGroup(MulticastAddressV4);
-                _datagramSocket.JoinMulticastGroup(MulticastAddressV6);
                 _localEndPoint = new NetEndPoint(_datagramSocket.Information.LocalAddress, _datagramSocket.Information.LocalPort);
             }
             catch (Exception ex)
             {
                 NetUtils.DebugWriteError("[B]Bind exception: {0}", ex.ToString());
+                return false;
+            }
+            return true;
+        }
+
+        public bool JoinMulticastGroup(string address)
+        {
+            try
+            {
+                _datagramSocket.JoinMulticastGroup(new HostName(address));
+            }
+            catch (Exception)
+            {
                 return false;
             }
             return true;

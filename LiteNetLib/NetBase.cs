@@ -178,6 +178,8 @@ namespace LiteNetLib
             _netEventsQueue.Clear();
             if (!_socket.Bind(port))
                 return false;
+            _socket.JoinMulticastGroup(NetConstants.MulticastGroupIPv4);
+            _socket.JoinMulticastGroup(NetConstants.MulticastGroupIPv6);
 
             _running = true;
             _netThread = new NetThread("LogicThread(" + port + ")", UpdateTime, UpdateLogic);

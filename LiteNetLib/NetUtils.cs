@@ -57,7 +57,7 @@ namespace LiteNetLib
         public static string GetLocalIp(bool preferIPv4 = false)
         {
 #if WINRT && !UNITY_EDITOR
-            foreach (HostName localHostName in NetworkInformation.GetHostNames())
+            foreach (var localHostName in NetworkInformation.GetHostNames())
             {
                 if (localHostName.IPInformation != null)
                 {
@@ -70,12 +70,12 @@ namespace LiteNetLib
 
             try
             {
-                foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                        continue;
-                    foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
+                    foreach (var ip in ni.GetIPProperties().UnicastAddresses)
                     {
+                        if (IPAddress.IsLoopback(ip.Address))
+                            continue;
                         if (ip.Address.AddressFamily == AddressFamily.InterNetworkV6)
                             lastAddressV6 = ip.Address;
                         else
@@ -91,8 +91,9 @@ namespace LiteNetLib
             //Fallback mode
             if ((lastAddress == null && lastAddressV6 == null) || (lastAddress == null && preferIPv4))
             {
-                var host = Dns.GetHostEntry(Dns.GetHostName());
-                foreach (IPAddress ip in host.AddressList)
+                var hostName = Dns.GetHostName();
+                var host = Dns.GetHostEntry(hostName);
+                foreach (var ip in host.AddressList)
                 {
                     if (ip.AddressFamily == AddressFamily.InterNetworkV6)
                         lastAddressV6 = ip;

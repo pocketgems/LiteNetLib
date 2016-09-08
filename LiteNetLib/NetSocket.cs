@@ -16,11 +16,12 @@ namespace LiteNetLib
         private bool _running;
         private readonly NetBase.OnMessageReceived _onMessageReceived;
 
-        private static readonly IPAddress MulticastAddressV4 = IPAddress.Parse(NetConstants.MulticastGroupIPv4);
-        private static readonly IPAddress MulticastAddressV6 = IPAddress.Parse(NetConstants.MulticastGroupIPv6);
         private static readonly bool IPv6Support = Socket.OSSupportsIPv6;
         private const int SocketReceivePollTime = 100000;
         private const int SocketSendPollTime = 5000;
+
+        private IPAddress _mcastAddrV4;
+        private IPAddress _mcastAddrV6;
 
         public NetEndPoint LocalEndPoint
         {
@@ -30,6 +31,38 @@ namespace LiteNetLib
         public NetSocket(NetBase.OnMessageReceived onMessageReceived)
         {
             _onMessageReceived = onMessageReceived;
+        }
+
+        public bool JoinMulticastGroup(string address)
+        {
+            IPAddress addr;
+            if (!IPAddress.TryParse(address, out addr))
+                return false;
+
+            if (addr.AddressFamily == AddressFamily.InterNetwork)
+            {
+                _mcastAddrV4 = addr;
+                _udpSocketv4.SetSocketOption(
+                    SocketOptionLevel.IP, 
+                    SocketOptionName.AddMembership, 
+                    new MulticastOption(addr, IPAddress.Any));
+            }
+            else if (_udpSocketv6 != null)
+            {
+                try
+                {
+                    _mcastAddrV6 = addr;
+                    _udpSocketv6.SetSocketOption(
+                        SocketOptionLevel.IPv6,
+                        SocketOptionName.AddMembership,
+                        new IPv6MulticastOption(addr));
+                }
+                catch
+                {
+                    // Unity3d throws exception - ignored
+                }
+            }
+            return true;
         }
 
         private void ReceiveLogic(object state)
@@ -93,7 +126,6 @@ namespace LiteNetLib
             {
                 return false;
             }
-            _udpSocketv4.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(MulticastAddressV4, IPAddress.Any));
             _localEndPoint = new NetEndPoint((IPEndPoint)_udpSocketv4.LocalEndPoint);
 
             _running = true;
@@ -117,19 +149,6 @@ namespace LiteNetLib
             if (BindSocket(_udpSocketv6, new IPEndPoint(IPAddress.IPv6Any, port)))
             {
                 _localEndPoint = new NetEndPoint((IPEndPoint)_udpSocketv6.LocalEndPoint);
-
-                try
-                {
-                    _udpSocketv6.SetSocketOption(
-                        SocketOptionLevel.IPv6, 
-                        SocketOptionName.AddMembership,
-                        new IPv6MulticastOption(MulticastAddressV6));
-                }
-                catch
-                {
-                    // Unity3d throws exception - ignored
-                }
-
                 _threadv6 = new Thread(ReceiveLogic);
                 _threadv6.Name = "SocketThreadv6(" + port + ")";
                 _threadv6.IsBackground = true;
@@ -163,14 +182,15 @@ namespace LiteNetLib
         {
             try
             {
-                int result = _udpSocketv4.SendTo(data, offset, size, SocketFlags.None, new IPEndPoint(MulticastAddressV4, port));
-                if (result <= 0)
-                    return false;
-                if (IPv6Support)
+                if (_mcastAddrV4 != null)
                 {
-                    result = _udpSocketv6.SendTo(data, offset, size, SocketFlags.None, new IPEndPoint(MulticastAddressV6, port));
-                    if (result <= 0)
-                        return false;
+                    if (_udpSocketv4.SendTo(data, offset, size, SocketFlags.None, new IPEndPoint(_mcastAddrV4, port)) > 0)
+                        return true;
+                }
+                if (_mcastAddrV6 != null)
+                {
+                    if (_udpSocketv6.SendTo(data, offset, size, SocketFlags.None, new IPEndPoint(_mcastAddrV6, port)) > 0)
+                        return true;
                 }
             }
             catch (Exception ex)
@@ -178,7 +198,7 @@ namespace LiteNetLib
                 NetUtils.DebugWriteError("[S][MCAST]" + ex);
                 return false;
             }
-            return true;
+            return false;
         }
 
         public int SendTo(byte[] data, int offset, int size, NetEndPoint remoteEndPoint, ref int errorCode)
@@ -212,15 +232,12 @@ namespace LiteNetLib
                 errorCode = ex.ErrorCode;
                 return -1;
             }
-            catch (Exception ex)
-            {
-                NetUtils.DebugWriteError("[S]" + ex);
-                return -1;
-            }
         }
 
         public void Close()
         {
+            if (!_running)
+                return;
             _running = false;
 
             //Close IPv4

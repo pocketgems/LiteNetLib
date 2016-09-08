@@ -47,9 +47,6 @@
     <Compile Include="..\LiteNetLib\INetEventListener.cs">
       <Link>INetEventListener.cs</Link>
     </Compile>
-    <Compile Include="..\LiteNetLib\Modules\NatPNPModule.cs">
-      <Link>Modules\NatPNPModule.cs</Link>
-    </Compile>
     <Compile Include="..\LiteNetLib\Modules\NatPunchModule.cs">
       <Link>Modules\NatPunchModule.cs</Link>
     </Compile>
