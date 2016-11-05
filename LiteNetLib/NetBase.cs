@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using LiteNetLib.Utils;
 
 namespace LiteNetLib
@@ -183,14 +182,7 @@ namespace LiteNetLib
                 return false;
 
             _running = true;
-#if WINRT && !UNITY_EDITOR
-            ThreadPool.RunAsync(
-                a => UpdateLogic(), 
-                WorkItemPriority.Normal, 
-                WorkItemOptions.TimeSliced).AsTask();
-#else
             _logicThread = new NetThread("LogicThread(" + port + ")", UpdateTime, UpdateLogic);
-#endif
             return true;
         }
 
@@ -426,39 +418,31 @@ namespace LiteNetLib
         //Update function
         private void UpdateLogic()
         {
-            while (_running)
+            #if DEBUG
+            if (SimulateLatency)
             {
-#if DEBUG
-                if (SimulateLatency)
+                var node = _pingSimulationList.First;
+                var time = DateTime.UtcNow;
+                while (node != null)
                 {
-                    var node = _pingSimulationList.First;
-                    var time = DateTime.UtcNow;
-                    while (node != null)
+                    var incomingData = node.Value;
+                    if (incomingData.TimeWhenGet <= time)
                     {
-                        var incomingData = node.Value;
-                        if (incomingData.TimeWhenGet <= time)
-                        {
-                            DataReceived(incomingData.Data, incomingData.Data.Length, incomingData.EndPoint);
-                            var nodeToRemove = node;
-                            node = node.Next;
+                        DataReceived(incomingData.Data, incomingData.Data.Length, incomingData.EndPoint);
+                        var nodeToRemove = node;
+                        node = node.Next;
 
-                            lock (_pingSimulationList)
-                                _pingSimulationList.Remove(nodeToRemove);
-                        }
-                        else
-                        {
-                            node = node.Next;
-                        }
+                        lock (_pingSimulationList)
+                            _pingSimulationList.Remove(nodeToRemove);
+                    }
+                    else
+                    {
+                        node = node.Next;
                     }
                 }
-#endif
-                PostProcessEvent(UpdateTime);
-#if WINRT && !UNITY_EDITOR
-                _updateWaiter.WaitOne(UpdateTime);
-#else
-                Thread.Sleep(UpdateTime);
-#endif
             }
+            #endif
+            PostProcessEvent(_logicThread.SleepTime);
         }
 
         private void ReceiveLogic(byte[] data, int length, int errorCode, NetEndPoint remoteEndPoint)
@@ -498,7 +482,6 @@ namespace LiteNetLib
             else
             {
                 ProcessReceiveError(errorCode);
-                Stop();
             }
         }
 
