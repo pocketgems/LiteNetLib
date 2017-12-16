@@ -24,12 +24,13 @@ namespace LiteNetLib
         MtuOk,                  //16
         DiscoveryRequest,       //17
         DiscoveryResponse,      //18
-        Merged                  //19
+        Merged,                 //19
+        Fragmented              //20
     }
 
     internal sealed class NetPacket
     {
-        private const int LastProperty = 19;
+        private const int LastProperty = 20;
 
         //Header
         public PacketProperty Property
@@ -133,7 +134,8 @@ namespace LiteNetLib
             return property == PacketProperty.Reliable ||
                    property == PacketProperty.ReliableOrdered ||
                    property == PacketProperty.Unreliable ||
-                   property == PacketProperty.Sequenced;
+                   property == PacketProperty.Sequenced ||
+                   property == PacketProperty.Fragmented;
         }
 
         public static bool IsSequenced(PacketProperty property)

@@ -53,6 +53,7 @@ namespace LiteNetLib
         private readonly ReliableChannel _reliableUnorderedChannel;
         private readonly SequencedChannel _sequencedChannel;
         private readonly SimpleChannel _simpleChannel;
+        private readonly FragmentChannel _fragmentChannel;
 
         private int _windowSize = NetConstants.DefaultWindowSize;
 
@@ -182,6 +183,7 @@ namespace LiteNetLib
             _reliableUnorderedChannel = new ReliableChannel(this, false, _windowSize);
             _sequencedChannel = new SequencedChannel(this);
             _simpleChannel = new SimpleChannel(this);
+            _fragmentChannel = new FragmentChannel(this, 10, 10);
 
             _holdedFragments = new Dictionary<ushort, IncomingFragments>();
 
@@ -263,6 +265,8 @@ namespace LiteNetLib
                     return PacketProperty.Sequenced;
                 case SendOptions.ReliableOrdered:
                     return PacketProperty.ReliableOrdered;
+                case SendOptions.Fragmented:
+                    return PacketProperty.Fragmented;
                 default:
                     return PacketProperty.Unreliable;
             }
@@ -397,6 +401,9 @@ namespace LiteNetLib
                     break;
                 case PacketProperty.Unreliable:
                     _simpleChannel.AddToQueue(packet);
+                    break;
+                case PacketProperty.Fragmented:
+                    _fragmentChannel.AddToQueue(packet);
                     break;
                 case PacketProperty.MtuCheck:
                     //Must check result for MTU fix
@@ -671,6 +678,10 @@ namespace LiteNetLib
                     AddIncomingPacket(packet);
                     return;
 
+                case PacketProperty.Fragmented:
+                    _fragmentChannel.ProcessPacket(packet);
+                    break;
+
                 case PacketProperty.MtuCheck:
                 case PacketProperty.MtuOk:
                     ProcessMtuPacket(packet);
@@ -726,7 +737,8 @@ namespace LiteNetLib
                 if (_reliableOrderedChannel.SendNextPacket() ||
                     _reliableUnorderedChannel.SendNextPacket() ||
                     _sequencedChannel.SendNextPacket() ||
-                    _simpleChannel.SendNextPacket())
+                    _simpleChannel.SendNextPacket() ||
+                    _fragmentChannel.SendNextPacket())
                 {
                     currentSended++;
                 }
